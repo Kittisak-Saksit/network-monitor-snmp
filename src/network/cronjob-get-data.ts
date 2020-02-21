@@ -18,6 +18,9 @@ export class CronjobGetData extends NestSchedule {
   async cronjob() {
     // const deviceIp = ['192.168.10.2']
     // const deviceName = ['test']
+    // deviceIp.forEach(async (ip, index) => {
+    //   await this.getDeviceData(ip, deviceName[index])
+    // })
     DEVICE_IP.forEach(async (ip, index) => {
       await this.getDeviceData(ip, DEVICE_NAME[index])
     })
@@ -47,7 +50,8 @@ export class CronjobGetData extends NestSchedule {
     await Promise.all([
       this.networkService.setDeviceData(deviceName, deviceDataPayload),
       this.setInterface(deviceName, {
-        interfaceName: result[8],
+        interfaceName: result[8].interfacePort,
+        interfaceOid: result[8].interfaceOid,
         interfaceStatus: result[7],
         inbounds: result[5],
         outbounds: result[6]
@@ -57,10 +61,11 @@ export class CronjobGetData extends NestSchedule {
   }
 
   private async setInterface(deviceName: string, interfaceData: any): Promise<void> {
-    const { interfaceName, interfaceStatus, inbounds, outbounds } = interfaceData
+    const { interfaceName, interfaceOid, interfaceStatus, inbounds, outbounds } = interfaceData
     interfaceName.forEach(async (nameValue: string, index: number) => {
-      const name = nameValue.replace('/', '-')
+      const name = nameValue.replace(/\//g, '-')
       const interfaceDataPayload = {
+        oid: interfaceOid[index],
         status: interfaceStatus[index],
         inbound: inbounds[index],
         outbound: outbounds[index]
