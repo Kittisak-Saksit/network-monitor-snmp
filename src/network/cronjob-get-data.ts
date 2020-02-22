@@ -14,13 +14,14 @@ export class CronjobGetData extends NestSchedule {
     super()
   }
 
-  @Cron('10 * * * *')
+  @Cron('*/5 * * * *')
   async cronjob() {
     // const deviceIp = ['192.168.10.2']
     // const deviceName = ['test']
     // deviceIp.forEach(async (ip, index) => {
     //   await this.getDeviceData(ip, deviceName[index])
     // })
+    console.log(`get data @ ${new Date()}`)
     DEVICE_IP.forEach(async (ip, index) => {
       await this.getDeviceData(ip, DEVICE_NAME[index])
     })
@@ -28,36 +29,41 @@ export class CronjobGetData extends NestSchedule {
 
   private async getDeviceData(deviceIp: string, deviceName: string): Promise<void> {
     const device = new snmp.Session({ host: deviceIp, community: 'public' })
-    const result = await Promise.all([
-      getOs(device),
-      getUpTime(device),
-      getCpu(device),
-      getMemory(device),
-      getTemperature(device),
-      getInbound(device),
-      getOutbound(device),
-      getInterfaceStatus(device),
-      getInterface(device)
-    ])
-    const deviceDataPayload = {
-      ip: deviceIp,
-      os: result[0],
-      upTime: result[1],
-      cpu: result[2],
-      memory: result[3],
-      temperature: result[4]
+    try {
+      const result = await Promise.all([
+        getOs(device),
+        getUpTime(device),
+        getCpu(device),
+        getMemory(device),
+        getTemperature(device),
+        getInbound(device),
+        getOutbound(device),
+        getInterfaceStatus(device),
+        getInterface(device)
+      ])
+      const deviceDataPayload = {
+        ip: deviceIp,
+        os: result[0],
+        upTime: result[1],
+        cpu: result[2],
+        memory: result[3],
+        temperature: result[4]
+      }
+      const interfaceResult: any = result[8]
+      await Promise.all([
+        this.networkService.setDeviceData(deviceName, deviceDataPayload),
+        this.setInterface(deviceName, {
+          interfaceName: interfaceResult.interfacePort,
+          interfaceOid: interfaceResult.interfaceOid,
+          interfaceStatus: result[7],
+          inbounds: result[5],
+          outbounds: result[6]
+        }),
+        this.setTraffic(deviceName, result[5], result[6])
+      ])   
+    } catch (error) {
+      
     }
-    await Promise.all([
-      this.networkService.setDeviceData(deviceName, deviceDataPayload),
-      this.setInterface(deviceName, {
-        interfaceName: result[8].interfacePort,
-        interfaceOid: result[8].interfaceOid,
-        interfaceStatus: result[7],
-        inbounds: result[5],
-        outbounds: result[6]
-      }),
-      this.setTraffic(deviceName, result[5], result[6])
-    ])
   }
 
   private async setInterface(deviceName: string, interfaceData: any): Promise<void> {
@@ -70,7 +76,11 @@ export class CronjobGetData extends NestSchedule {
         inbound: inbounds[index],
         outbound: outbounds[index]
       }
-      await this.networkService.setDeviceInterface(deviceName, name, interfaceDataPayload)
+      try {
+        await this.networkService.setDeviceInterface(deviceName, name, interfaceDataPayload)      
+      } catch (error) {
+
+      }
     })
   }
 
