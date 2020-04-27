@@ -14,7 +14,7 @@ export class CronjobGetData extends NestSchedule {
     super()
   }
 
-  @Cron('10 * * * *')
+  @Cron('* * * * *')
   async cronjob() {
     // const deviceIp = ['192.168.10.2']
     // const deviceName = ['test']
